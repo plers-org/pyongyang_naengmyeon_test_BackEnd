@@ -101,3 +101,51 @@ def test_submit_returns_no_recommendation_when_profiles_are_not_eligible(monkeyp
         "status": "no_recommendation",
         "message": "추천 가능한 식당이 없습니다.",
     }
+
+
+def _profile(name, operating_status="unknown", profile_confidence="medium"):
+    return {
+        "restaurant_name": name,
+        "meat_aroma_score": 5,
+        "umami_score": 4,
+        "buckwheat_aroma_score": 1,
+        "acidity_score": 1,
+        "profile_confidence": profile_confidence,
+        "operating_status": operating_status,
+        "fit_sentence": "설명",
+        "evidence_summary": "근거",
+    }
+
+
+def _submit(monkeypatch, rows):
+    repository = InMemoryProfileRepository(rows)
+    monkeypatch.setattr("api.v1.recommendation.recommendation_service.get_profile_repository", lambda: repository)
+    return client.post(
+        "/api/recommendation/submit",
+        json={
+            "experience_level": "expert",
+            "answers": [{"question_id": index, "selected_choice_id": 1} for index in range(1, 7)],
+        },
+    )
+
+
+def test_unknown_operating_status_stays_in_candidates(monkeypatch):
+    """영업 상태 미확인(unknown)은 폐업 근거가 아니므로 후보에 남는다."""
+    response = _submit(monkeypatch, [_profile("미확인면옥", operating_status="unknown")])
+
+    assert response.status_code == 200
+    assert response.json()["restaurant_name"] == "미확인면옥"
+
+
+def test_closed_restaurants_are_excluded(monkeypatch):
+    response = _submit(monkeypatch, [_profile("폐업면옥", operating_status="closed")])
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "no_recommendation"
+
+
+def test_low_confidence_profiles_are_excluded(monkeypatch):
+    response = _submit(monkeypatch, [_profile("근거부족면옥", profile_confidence="low")])
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "no_recommendation"

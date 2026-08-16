@@ -102,14 +102,32 @@ def import_profiles(database_url: str, rows: Iterable[Mapping[str, object]]) -> 
     return len(values)
 
 
+TRAIT_COLUMNS = ("meat_aroma_score", "umami_score", "buckwheat_aroma_score", "acidity_score")
+
+
+def _score(value: object) -> float | None:
+    """비어 있거나 숫자가 아닌 점수는 None으로 돌려 적재 대상에서 걸러낸다."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def has_complete_scores(row: Mapping[str, object]) -> bool:
+    """4축 점수가 모두 채워진 행만 적재한다."""
+    return all(row.get(column) is not None for column in TRAIT_COLUMNS)
+
+
 def profile_row_from_search_profile(profile: dict) -> dict:
     traits = profile.get("traits", {})
     return {
         "restaurant_name": profile["restaurant_name"],
-        "meat_aroma_score": traits.get("meat_aroma", {}).get("score"),
-        "umami_score": traits.get("umami", {}).get("score"),
-        "buckwheat_aroma_score": traits.get("buckwheat_aroma", {}).get("score"),
-        "acidity_score": traits.get("acidity", {}).get("score"),
+        "meat_aroma_score": _score(traits.get("meat_aroma", {}).get("score")),
+        "umami_score": _score(traits.get("umami", {}).get("score")),
+        "buckwheat_aroma_score": _score(traits.get("buckwheat_aroma", {}).get("score")),
+        "acidity_score": _score(traits.get("acidity", {}).get("score")),
         "profile_confidence": "low" if profile.get("review_status") == "needs_more_evidence" else "medium",
         "operating_status": "unknown",
         "fit_sentence": "",
@@ -127,10 +145,10 @@ def profile_row_from_search_csv(
     availability = availability or {}
     return {
         "restaurant_name": str(profile["restaurant_name"]),
-        "meat_aroma_score": profile.get("meat_aroma_score"),
-        "umami_score": profile.get("umami_score"),
-        "buckwheat_aroma_score": profile.get("buckwheat_aroma_score"),
-        "acidity_score": profile.get("acidity_score"),
+        "meat_aroma_score": _score(profile.get("meat_aroma_score")),
+        "umami_score": _score(profile.get("umami_score")),
+        "buckwheat_aroma_score": _score(profile.get("buckwheat_aroma_score")),
+        "acidity_score": _score(profile.get("acidity_score")),
         "profile_confidence": "low" if profile.get("review_status") == "needs_more_evidence" else "medium",
         "operating_status": str(availability.get("operating_status", "unknown")),
         "fit_sentence": str(copy.get("fit_sentence", "")),

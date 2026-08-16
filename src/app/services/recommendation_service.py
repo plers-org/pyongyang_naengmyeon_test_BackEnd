@@ -24,17 +24,23 @@ class ProfileRepository(Protocol):
 
 class InMemoryProfileRepository:
     def __init__(self, rows: Iterable[Mapping[str, object]] = ()) -> None:
-        self._profiles = [
-            RestaurantProfile(
-                restaurant_name=str(row["restaurant_name"]),
-                scores={trait: float(row[f"{trait}_score"]) for trait in TRAITS},
-                profile_confidence=str(row.get("profile_confidence", "low")),
-                operating_status=str(row.get("operating_status", "unknown")),
-                fit_sentence=str(row.get("fit_sentence", "")),
-                evidence_summary=str(row.get("evidence_summary", "")),
+        self._profiles = []
+        for row in rows:
+            try:
+                scores = {trait: float(row[f"{trait}_score"]) for trait in TRAITS}
+            except (KeyError, TypeError, ValueError):
+                # 근거가 부족해 4축 점수를 매기지 못한 프로필은 추천 대상이 아니다.
+                continue
+            self._profiles.append(
+                RestaurantProfile(
+                    restaurant_name=str(row["restaurant_name"]),
+                    scores=scores,
+                    profile_confidence=str(row.get("profile_confidence", "low")),
+                    operating_status=str(row.get("operating_status", "unknown")),
+                    fit_sentence=str(row.get("fit_sentence", "")),
+                    evidence_summary=str(row.get("evidence_summary", "")),
+                )
             )
-            for row in rows
-        ]
 
     def list_profiles(self) -> Sequence[RestaurantProfile]:
         return self._profiles
@@ -72,7 +78,9 @@ def recommend(request: RecommendationSubmitRequest, repository: ProfileRepositor
 
     candidates = []
     for profile in repository.list_profiles():
-        if profile.operating_status != "open" or profile.profile_confidence == "low":
+        # operating_status가 unknown인 가게는 폐업 근거가 없을 뿐이므로 후보에 남긴다.
+        # 확인된 폐업(closed)과 근거가 부족한 프로필(low)만 제외한다.
+        if profile.operating_status == "closed" or profile.profile_confidence == "low":
             continue
         score = 1 - sum(abs(profile.scores[trait] - preferred[index]) / 4 for index, trait in enumerate(TRAITS)) / len(TRAITS)
         candidates.append((round(score, 4), profile))

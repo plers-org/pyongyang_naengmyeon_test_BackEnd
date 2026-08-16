@@ -6,7 +6,12 @@ import json
 import os
 from pathlib import Path
 
-from services.profile_repository import import_profiles, profile_row_from_search_csv, profile_row_from_search_profile
+from services.profile_repository import (
+    has_complete_scores,
+    import_profiles,
+    profile_row_from_search_csv,
+    profile_row_from_search_profile,
+)
 
 
 def main() -> None:
@@ -26,7 +31,13 @@ def main() -> None:
     else:
         payload = json.loads(args.input.read_text(encoding="utf-8"))
         rows = [profile_row_from_search_profile(item) for item in payload]
-    count = import_profiles(os.environ["DATABASE_URL"], rows)
+
+    complete = [row for row in rows if has_complete_scores(row)]
+    skipped = len(rows) - len(complete)
+    if skipped:
+        names = ", ".join(str(row["restaurant_name"]) for row in rows if not has_complete_scores(row))
+        print(f"skipped {skipped} profiles with missing trait scores: {names}")
+    count = import_profiles(os.environ["DATABASE_URL"], complete)
     print(f"imported {count} restaurant profiles")
 
 

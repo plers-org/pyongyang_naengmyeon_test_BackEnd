@@ -69,6 +69,20 @@ if profile.operating_status != "open" or profile.profile_confidence == "low":
 
 **결과: 어떤 답변을 제출해도 `no_recommendation`이 반환된다.** 기능 개발과 별개로 데이터를 채우지 않으면 서비스가 성립하지 않는다. §10 Phase 0에서 최우선 처리한다.
 
+#### 추가 발견 — 4축 점수 결측으로 적재 자체가 실패
+
+Phase 0 착수 중 확인된 두 번째 문제다. 32곳 중 **15곳은 4축 점수가 비어 있다**(결측 15곳 = `review_status=needs_more_evidence` 15곳과 정확히 일치).
+
+```
+능라도(강남점)  {meat_aroma: 5, umami: 2, buckwheat_aroma: 4, acidity: -}
+양각도          {meat_aroma: 5, umami: -, buckwheat_aroma: 5, acidity: -}
+...
+```
+
+`InMemoryProfileRepository`와 `import_profiles`는 **필터링 이전 파싱 단계**에서 모든 행을 `float()` 변환하므로, 빈 문자열을 만나면 `ValueError`로 죽는다. 즉 필터를 완화해도 **마이그레이션 자체가 실패**한다.
+
+→ 4축이 완비된 행만 적재하고, 스킵된 가게명을 출력하도록 처리한다(§10 Phase 0-4). 결측 15곳은 어차피 `profile_confidence=low`로 추천 후보에서 제외되므로 실질 손실은 없다.
+
 ---
 
 ## 2. 목표 / 비목표
@@ -478,9 +492,10 @@ CREATE TABLE IF NOT EXISTS survey_responses (
 
 | # | 대상 | 작업 |
 | --- | --- | --- |
-| 0-1 | `recommendation_service.py` | 후보 필터를 `closed`만 제외하도록 완화 |
-| 0-2 | `search/data/.../restaurant_availability.csv` | 실제 영업 상태 조사·입력 (최소 상위 추천 후보군) |
-| 0-3 | — | 마이그레이션 후 추천 후보 수 > 0 확인 |
+| 0-1 | `recommendation_service.py` | 후보 필터를 `closed`만 제외하도록 완화 ✅ |
+| 0-2 | `search/data/.../restaurant_availability.csv` | 실제 영업 상태 조사·입력 — **외부 조사 필요, 미착수** |
+| 0-3 | — | 마이그레이션 후 추천 후보 수 > 0 확인 ✅ (0곳 → 17곳) |
+| 0-4 | `profile_repository.py`, `migrate_search_profiles.py`, `recommendation_service.py` | 4축 점수 결측 행을 적재에서 제외하고 스킵 내역 출력 ✅ |
 
 ### Phase 1 — 유형 판정 및 결과 응답 (핵심)
 
