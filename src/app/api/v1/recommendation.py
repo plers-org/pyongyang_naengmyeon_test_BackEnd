@@ -11,7 +11,7 @@ from schemas.recommendation import (
     TypeScore,
     TypeSummary,
 )
-from services import recommendation_service
+from services import recommendation_service, response_repository
 from services.recommendation_data import TRAIT_LABELS, TRAITS
 from services.taste_type_data import TASTE_TYPES
 
@@ -47,6 +47,19 @@ def submit_recommendation(request: RecommendationSubmitRequest) -> Recommendatio
         )
         for rank, (score, profile) in enumerate(result.restaurants, 1)
     ]
+
+    response_repository.record_safely(
+        response_repository.get_response_repository(),
+        session_id=request.session_id,
+        experience_level=request.experience_level,
+        answers=[answer.model_dump() for answer in request.answers],
+        taste_vector=dict(result.preferred),
+        primary_type=result.type_ranking[0][0],
+        secondary_type=result.type_ranking[1][0],
+        recommended=[
+            {"restaurant_name": item.restaurant_name, "fit_score": item.fit_score} for item in restaurants
+        ],
+    )
 
     return RecommendationResultResponse(
         status="recommended" if restaurants else "no_recommendation",

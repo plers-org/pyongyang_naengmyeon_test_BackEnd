@@ -33,6 +33,8 @@ class RecommendationAnswer(BaseModel):
 class RecommendationSubmitRequest(BaseModel):
     experience_level: ExperienceLevel
     answers: List[RecommendationAnswer]
+    # 프론트가 생성한 익명 UUID. 유형 분포·퍼널 분석용이며 개인정보는 담지 않는다.
+    session_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class TypeSummary(BaseModel):
