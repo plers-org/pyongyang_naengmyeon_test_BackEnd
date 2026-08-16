@@ -215,6 +215,31 @@ def test_recommended_restaurant_carries_display_fields(monkeypatch, two_restaura
     assert 0.0 <= top["fit_score"] <= 1.0
 
 
+def test_restaurant_type_and_location_are_exposed(monkeypatch):
+    rows = [
+        _profile(
+            "우래옥",
+            type_key="uraeok",
+            address="서울 중구 창경궁로 62-29",
+            map_url="https://map.naver.com/p/entry/place/11665",
+        )
+    ]
+    top = _submit(monkeypatch, rows).json()["recommended_restaurants"][0]
+
+    assert top["type_key"] == "uraeok"
+    assert top["address"] == "서울 중구 창경궁로 62-29"
+    assert top["map_url"].startswith("https://")
+
+
+def test_missing_location_fields_are_null(monkeypatch):
+    """주소·지도 링크는 아직 수집 전이므로 없으면 null이어야 한다."""
+    top = _submit(monkeypatch, [_profile("미등록면옥")]).json()["recommended_restaurants"][0]
+
+    assert top["type_key"] is None
+    assert top["address"] is None
+    assert top["map_url"] is None
+
+
 def test_single_candidate_returns_one_restaurant(monkeypatch):
     payload = _submit(monkeypatch, [_profile("유일면옥")]).json()
 

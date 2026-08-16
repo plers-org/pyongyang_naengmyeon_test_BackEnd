@@ -1,6 +1,7 @@
 from typing import Iterable, List, Mapping
 
 from services.recommendation_service import RestaurantProfile
+from services.taste_type_data import LEGACY_CATEGORY_TO_TYPE_KEY
 
 
 class PostgresProfileRepository:
@@ -19,7 +20,8 @@ class PostgresProfileRepository:
                 """
                 SELECT restaurant_name, meat_aroma_score, umami_score,
                        buckwheat_aroma_score, acidity_score, profile_confidence,
-                       operating_status, fit_sentence, evidence_summary
+                       operating_status, fit_sentence, evidence_summary,
+                       type_key, address, map_url
                 FROM restaurant_recommendation_profiles
                 """
             ).fetchall()
@@ -31,6 +33,9 @@ class PostgresProfileRepository:
                 operating_status=row[6],
                 fit_sentence=row[7],
                 evidence_summary=row[8],
+                type_key=row[9],
+                address=row[10],
+                map_url=row[11],
             )
             for row in rows
         ]
@@ -47,10 +52,30 @@ CREATE TABLE IF NOT EXISTS restaurant_recommendation_profiles (
   operating_status TEXT NOT NULL DEFAULT 'unknown',
   fit_sentence TEXT NOT NULL DEFAULT '',
   evidence_summary TEXT NOT NULL DEFAULT '',
+  type_key TEXT CHECK (type_key IN ('uraeok', 'uijeongbu', 'jangchungdong', 'dongchimi')),
+  address TEXT,
+  map_url TEXT,
+  latitude NUMERIC(9, 6),
+  longitude NUMERIC(9, 6),
   profile_version TEXT NOT NULL DEFAULT 'phase2-v1',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
+
+# 이미 만들어진 테이블에도 Phase 2 컬럼이 생기도록 별도로 적용한다.
+PROFILE_MIGRATION_SQL = """
+ALTER TABLE restaurant_recommendation_profiles
+  ADD COLUMN IF NOT EXISTS type_key TEXT,
+  ADD COLUMN IF NOT EXISTS address TEXT,
+  ADD COLUMN IF NOT EXISTS map_url TEXT,
+  ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6),
+  ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
+"""
+
+
+def _ensure_schema(connection) -> None:
+    connection.execute(PROFILE_TABLE_SQL)
+    connection.execute(PROFILE_MIGRATION_SQL)
 
 
 def initialize_postgres(database_url: str) -> None:
@@ -61,7 +86,7 @@ def initialize_postgres(database_url: str) -> None:
     except ImportError as exc:
         raise RuntimeError("PostgreSQL 연동을 사용하려면 psycopg[binary]가 필요합니다.") from exc
     with psycopg.connect(database_url) as connection:
-        connection.execute(PROFILE_TABLE_SQL)
+        _ensure_schema(connection)
         connection.commit()
 
 
@@ -74,16 +99,18 @@ def import_profiles(database_url: str, rows: Iterable[Mapping[str, object]]) -> 
         raise RuntimeError("PostgreSQL 연동을 사용하려면 psycopg[binary]가 필요합니다.") from exc
     values = list(rows)
     with psycopg.connect(database_url) as connection:
-        connection.execute(PROFILE_TABLE_SQL)
+        _ensure_schema(connection)
         connection.executemany(
             """
             INSERT INTO restaurant_recommendation_profiles (
               restaurant_name, meat_aroma_score, umami_score,
               buckwheat_aroma_score, acidity_score, profile_confidence,
-              operating_status, fit_sentence, evidence_summary, profile_version
+              operating_status, fit_sentence, evidence_summary,
+              type_key, address, map_url, profile_version
             ) VALUES (%(restaurant_name)s, %(meat_aroma_score)s, %(umami_score)s,
               %(buckwheat_aroma_score)s, %(acidity_score)s, %(profile_confidence)s,
-              %(operating_status)s, %(fit_sentence)s, %(evidence_summary)s, %(profile_version)s)
+              %(operating_status)s, %(fit_sentence)s, %(evidence_summary)s,
+              %(type_key)s, %(address)s, %(map_url)s, %(profile_version)s)
             ON CONFLICT (restaurant_name) DO UPDATE SET
               meat_aroma_score = EXCLUDED.meat_aroma_score,
               umami_score = EXCLUDED.umami_score,
@@ -93,6 +120,10 @@ def import_profiles(database_url: str, rows: Iterable[Mapping[str, object]]) -> 
               operating_status = EXCLUDED.operating_status,
               fit_sentence = EXCLUDED.fit_sentence,
               evidence_summary = EXCLUDED.evidence_summary,
+              type_key = EXCLUDED.type_key,
+              -- 주소·지도 링크는 별도로 채워 넣는 값이므로 새 값이 없으면 기존 값을 지키다.
+              address = COALESCE(EXCLUDED.address, restaurant_recommendation_profiles.address),
+              map_url = COALESCE(EXCLUDED.map_url, restaurant_recommendation_profiles.map_url),
               profile_version = EXCLUDED.profile_version,
               updated_at = NOW()
             """,
@@ -120,6 +151,19 @@ def has_complete_scores(row: Mapping[str, object]) -> bool:
     return all(row.get(column) is not None for column in TRAIT_COLUMNS)
 
 
+def _type_key(legacy_category: object) -> str | None:
+    """search의 legacy_category(우래옥/의정부/장충동/동치미)를 type_key로 옮긴다."""
+    if not legacy_category:
+        return None
+    return LEGACY_CATEGORY_TO_TYPE_KEY.get(str(legacy_category).strip())
+
+
+def _text(value: object) -> str | None:
+    if value is None or not str(value).strip():
+        return None
+    return str(value).strip()
+
+
 def profile_row_from_search_profile(profile: dict) -> dict:
     traits = profile.get("traits", {})
     return {
@@ -132,6 +176,9 @@ def profile_row_from_search_profile(profile: dict) -> dict:
         "operating_status": "unknown",
         "fit_sentence": "",
         "evidence_summary": profile.get("special_note", ""),
+        "type_key": _type_key(profile.get("legacy_category")),
+        "address": _text(profile.get("address")),
+        "map_url": _text(profile.get("map_url")),
         "profile_version": profile.get("profile_version", "phase2-v1"),
     }
 
@@ -150,8 +197,11 @@ def profile_row_from_search_csv(
         "buckwheat_aroma_score": _score(profile.get("buckwheat_aroma_score")),
         "acidity_score": _score(profile.get("acidity_score")),
         "profile_confidence": "low" if profile.get("review_status") == "needs_more_evidence" else "medium",
-        "operating_status": str(availability.get("operating_status", "unknown")),
+        "operating_status": str(availability.get("operating_status") or "unknown"),
         "fit_sentence": str(copy.get("fit_sentence", "")),
         "evidence_summary": str(profile.get("special_note", "")),
+        "type_key": _type_key(profile.get("legacy_category")),
+        "address": _text(availability.get("address")),
+        "map_url": _text(availability.get("map_url")),
         "profile_version": str(profile.get("profile_version", "phase2-v1")),
     }

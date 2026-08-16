@@ -563,10 +563,12 @@ CREATE TABLE IF NOT EXISTS survey_responses (
 
 | # | 대상 | 작업 |
 | --- | --- | --- |
-| 2-1 | `services/profile_repository.py` | `PROFILE_TABLE_SQL`에 `type_key`/`address`/`map_url`/좌표 추가, `SELECT`·`INSERT` 확장 |
-| 2-2 | `services/profile_repository.py` | `profile_row_from_search_csv()`에 `legacy_category` → `type_key` 매핑 추가 |
-| 2-3 | 데이터 | 가게 주소·지도 링크 수집 |
-| 2-4 | `scripts/migrate_search_profiles.py` | 확장 필드 반영 확인 |
+| 2-1 | `services/profile_repository.py` | `PROFILE_TABLE_SQL`에 `type_key`/`address`/`map_url`/좌표 추가, `SELECT`·`INSERT` 확장 ✅ |
+| 2-2 | `services/profile_repository.py` | `legacy_category` → `type_key` 매핑 ✅ (32곳 전부 매핑, 미매핑 0곳) |
+| 2-3 | 데이터 | 가게 주소·지도 링크 수집 — **외부 조사 필요, 미착수** |
+| 2-4 | `scripts/migrate_search_profiles.py` | 확장 필드 반영 확인 ✅ |
+
+**주소·지도 링크 수집 방법**: `restaurant_availability.csv`에 `address`, `map_url` 컬럼을 추가하기만 하면 된다. 변환 함수가 이미 해당 키를 읽으므로 코드 수정 없이 반영된다. 기존 테이블에는 `PROFILE_MIGRATION_SQL`이 컬럼을 추가하고, 재적재 시 `COALESCE`로 기존 주소·링크를 덮어쓰지 않는다.
 
 ### Phase 3 — 답변 로그
 
