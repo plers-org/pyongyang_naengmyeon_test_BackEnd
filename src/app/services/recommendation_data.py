@@ -7,6 +7,17 @@ from schemas.recommendation import RecommendationQuestion, RecommendationChoice
 TRAITS = ("meat_aroma", "umami", "buckwheat_aroma", "acidity")
 TraitVector = Tuple[float, float, float, float]
 
+# 취향 그래프에 표시할 축 이름. 문구 변경 시 서버만 배포하면 되도록 응답에 함께 내려준다.
+TRAIT_LABELS: Dict[str, str] = {
+    "meat_aroma": "육향",
+    "umami": "감칠맛",
+    "buckwheat_aroma": "메밀향",
+    "acidity": "산미",
+}
+
+# 결과 화면에 노출할 추천 가게 수.
+RECOMMENDATION_COUNT = 2
+
 
 def _question(question_id: int, text: str, choices: List[str]) -> RecommendationQuestion:
     return RecommendationQuestion(
