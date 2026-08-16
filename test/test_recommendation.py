@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
+from services.recommendation_data import TEMP_ADDRESS_URL
 from services.recommendation_service import InMemoryProfileRepository
 
 
@@ -231,13 +232,35 @@ def test_restaurant_type_and_location_are_exposed(monkeypatch):
     assert top["map_url"].startswith("https://")
 
 
-def test_missing_location_fields_are_null(monkeypatch):
-    """주소·지도 링크는 아직 수집 전이므로 없으면 null이어야 한다."""
+def test_missing_map_url_falls_back_to_temp_url(monkeypatch):
+    """지도 링크를 아직 수집하지 못한 가게는 임시 URL로 채운다."""
     top = _submit(monkeypatch, [_profile("미등록면옥")]).json()["recommended_restaurants"][0]
 
+    assert top["map_url"] == TEMP_ADDRESS_URL
     assert top["type_key"] is None
     assert top["address"] is None
-    assert top["map_url"] is None
+
+
+def test_real_map_url_takes_precedence_over_temp(monkeypatch):
+    """실제 링크가 있으면 임시 값 대신 실제 값을 쓴다."""
+    rows = [_profile("실제면옥", map_url="https://map.naver.com/p/entry/place/11665")]
+    top = _submit(monkeypatch, rows).json()["recommended_restaurants"][0]
+
+    assert top["map_url"] == "https://map.naver.com/p/entry/place/11665"
+    assert top["map_url"] != TEMP_ADDRESS_URL
+
+
+def test_temp_url_applies_per_restaurant(monkeypatch):
+    """가게마다 개별 판단한다. 한 곳만 링크가 있어도 다른 곳에 영향을 주지 않는다."""
+    rows = [
+        _profile("실제면옥", scores=(5, 4, 1, 1), map_url="https://map.naver.com/p/entry/place/11665"),
+        _profile("미등록면옥", scores=(5, 4, 2, 1)),
+    ]
+    restaurants = _submit(monkeypatch, rows).json()["recommended_restaurants"]
+    by_name = {r["restaurant_name"]: r["map_url"] for r in restaurants}
+
+    assert by_name["실제면옥"] == "https://map.naver.com/p/entry/place/11665"
+    assert by_name["미등록면옥"] == TEMP_ADDRESS_URL
 
 
 def test_single_candidate_returns_one_restaurant(monkeypatch):

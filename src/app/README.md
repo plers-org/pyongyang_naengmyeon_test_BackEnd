@@ -52,6 +52,9 @@ uvicorn main:app --reload
 유형 판정과 취향 그래프는 답변만으로 계산되므로 가게 데이터가 없어도 항상 채워집니다.
 추천할 가게가 없으면 `status`가 `no_recommendation`이 되고 `recommended_restaurants`만 빕니다.
 
+> `map_url`은 아직 수집 전이라 임시로 `TEMP_ADDRESS_URL`이 내려갑니다.
+> `restaurant_availability.csv`에 `map_url` 컬럼을 채우면 해당 가게부터 실제 링크로 바뀝니다.
+
 요청에 `session_id`(프론트 생성 익명 UUID)를 넣으면 응답 로그가 함께 기록됩니다. 선택 항목입니다.
 
 ## 취향 유형

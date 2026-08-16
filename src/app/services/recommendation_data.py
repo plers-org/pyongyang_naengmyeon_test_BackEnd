@@ -18,6 +18,12 @@ TRAIT_LABELS: Dict[str, str] = {
 # 결과 화면에 노출할 추천 가게 수.
 RECOMMENDATION_COUNT = 2
 
+# TODO(데이터): 가게 주소·지도 링크를 수집하기 전까지 쓰는 임시 값.
+# restaurant_availability.csv에 address / map_url 컬럼이 채워지면
+# 해당 가게는 자동으로 실제 값을 쓰고 이 임시 값은 쓰이지 않는다.
+# 전 가게에 실제 데이터가 들어오면 이 상수와 사용처를 제거한다. (PRD §10 Phase 2-3)
+TEMP_ADDRESS_URL = "https://www.google.com"
+
 
 def _question(question_id: int, text: str, choices: List[str]) -> RecommendationQuestion:
     return RecommendationQuestion(
