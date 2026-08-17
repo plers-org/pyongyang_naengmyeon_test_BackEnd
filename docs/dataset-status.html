@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+</style>
+<title>평냉 데이터셋 현황</title>
+<style>
+  :root {
+    --ground: #EFF2F3;
+    --surface: #FFFFFF;
+    --surface-sunk: #E7ECEE;
+    --ink: #171D22;
+    --ink-2: #5A666E;
+    --ink-3: #8A959C;
+    --rule: #D3DADE;
+    --rule-strong: #B4BEC4;
+    --accent: #1F5B63;
+    --accent-soft: #DCE9EA;
+    --crit: #A5322A;
+    --crit-soft: #F3DFDD;
+    --warn: #8A6512;
+    --warn-soft: #F1E7D2;
+    --ok: #2A6350;
+    --ok-soft: #DCE9E3;
+
+    --f-body: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+              "Malgun Gothic", "Noto Sans KR", "Segoe UI", sans-serif;
+    --f-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Mono",
+              "D2Coding", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #12171A;
+      --surface: #191F23;
+      --surface-sunk: #101518;
+      --ink: #E3E8EA;
+      --ink-2: #97A3AA;
+      --ink-3: #6D7A81;
+      --rule: #2B3439;
+      --rule-strong: #3D484E;
+      --accent: #74B4BB;
+      --accent-soft: #1B2E31;
+      --crit: #E08C82;
+      --crit-soft: #2E1E1C;
+      --warn: #D2A954;
+      --warn-soft: #2B2418;
+      --ok: #6FBF9D;
+      --ok-soft: #17271F;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #12171A;
+    --surface: #191F23;
+    --surface-sunk: #101518;
+    --ink: #E3E8EA;
+    --ink-2: #97A3AA;
+    --ink-3: #6D7A81;
+    --rule: #2B3439;
+    --rule-strong: #3D484E;
+    --accent: #74B4BB;
+    --accent-soft: #1B2E31;
+    --crit: #E08C82;
+    --crit-soft: #2E1E1C;
+    --warn: #D2A954;
+    --warn-soft: #2B2418;
+    --ok: #6FBF9D;
+    --ok-soft: #17271F;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 20px 96px;
+  }
+
+  .wrap {
+    max-width: 810px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+  }
+
+  /* ── 머리말 ─────────────────────────────── */
+
+  .masthead {
+    padding: 52px 0 26px;
+    border-bottom: 2px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .eyebrow span:not(:last-child)::after {
+    content: "/";
+    color: var(--rule-strong);
+    margin-left: 10px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 40px);
+    line-height: 1.2;
+    letter-spacing: -0.022em;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 17px;
+    color: var(--ink-2);
+    max-width: 62ch;
+    text-wrap: pretty;
+  }
+
+  .meta {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    padding-top: 4px;
+  }
+
+  /* ── 수치 요약 ───────────────────────────── */
+
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .fig {
+    background: var(--surface);
+    padding: 18px 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .fig-n {
+    font-family: var(--f-mono);
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+  .fig-n.is-crit { color: var(--crit); }
+  .fig-n.is-warn { color: var(--warn); }
+  .fig-n.is-ok   { color: var(--ok); }
+  .fig-l {
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.45;
+  }
+  .fig-s {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+
+  /* ── 섹션 ────────────────────────────────── */
+
+  section { display: flex; flex-direction: column; gap: 22px; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 1px solid var(--rule-strong);
+    padding-bottom: 10px;
+  }
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.012em;
+  }
+  .sec-note {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    margin-left: auto;
+    text-align: right;
+  }
+
+  /* ── 항목 블록 ───────────────────────────── */
+
+  .items { display: flex; flex-direction: column; gap: 18px; }
+
+  .item {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .item[data-sev="crit"] { border-left-color: var(--crit); }
+  .item[data-sev="warn"] { border-left-color: var(--warn); }
+  .item[data-sev="ok"]   { border-left-color: var(--ok); }
+
+  .item-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .id {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink-3);
+  }
+  h3 {
+    font-size: 16.5px;
+    font-weight: 650;
+    letter-spacing: -0.008em;
+  }
+  .chip {
+    margin-left: auto;
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .chip[data-t="crit"] { color: var(--crit); background: var(--crit-soft); }
+  .chip[data-t="warn"] { color: var(--warn); background: var(--warn-soft); }
+  .chip[data-t="ok"]   { color: var(--ok);   background: var(--ok-soft); }
+
+  .item p { color: var(--ink-2); text-wrap: pretty; }
+  .item p strong { color: var(--ink); font-weight: 650; }
+
+  ul.dash {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--ink-2);
+    list-style: none;
+  }
+  ul.dash li { padding-left: 18px; position: relative; text-wrap: pretty; }
+  ul.dash li::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+    color: var(--rule-strong);
+  }
+  ul.dash li strong { color: var(--ink); font-weight: 650; }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: 0.855em;
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    padding: 1px 5px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .effect {
+    background: var(--surface-sunk);
+    border-top: 1px solid var(--rule);
+    margin: 0 -22px -20px;
+    padding: 13px 22px;
+    font-size: 14px;
+    color: var(--ink-2);
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .effect b {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  /* ── 표 ─────────────────────────────────── */
+
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 480px; }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num {
+    font-family: var(--f-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  td.name { color: var(--ink); font-weight: 600; }
+  .pick { background: var(--accent-soft); }
+  .pick td { color: var(--ink); font-weight: 650; }
+
+  /* ── 남은 일 ────────────────────────────── */
+
+  .todo {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .todo-row {
+    background: var(--surface);
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 16px;
+    align-items: baseline;
+  }
+  .todo-row .id { grid-row: span 2; padding-top: 3px; }
+  .todo-t { font-weight: 650; font-size: 15.5px; }
+  .todo-d { color: var(--ink-2); font-size: 14px; text-wrap: pretty; }
+
+  .closing {
+    border-top: 2px solid var(--ink);
+    padding-top: 18px;
+    font-size: 14px;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+
+  @media (max-width: 560px) {
+    .sec-note { margin-left: 0; width: 100%; text-align: left; }
+    .chip { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow"><span>services</span><span>취향 추천 API</span><span>내부 공유</span></div>
+    <h1>추천 데이터셋 현황과 임시 처리</h1>
+    <p class="standfirst">
+      <code>search</code>가 산출한 가게 데이터 32곳이 그대로는 추천에 쓸 수 없는 상태입니다.
+      기능 개발을 막지 않기 위해 네 가지를 임시로 처리해 두었고, 모두 실제 데이터가 들어오면
+      되돌릴 자리를 남겨 두었습니다. 아래는 무엇이 비어 있고, 지금은 어떻게 넘기고 있으며,
+      누가 무엇을 채워야 풀리는지입니다.
+    </p>
+    <div class="meta">
+      <span>2026-08-16</span>
+      <span>브랜치 feature/taste-type-result</span>
+      <span>기준 커밋 1736058</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="figures">
+      <div class="fig">
+        <div class="fig-n">32</div>
+        <div class="fig-l">수집된 가게</div>
+        <div class="fig-s">taste_profiles.csv</div>
+      </div>
+      <div class="fig">
+        <div class="fig-n is-crit">32 / 32</div>
+        <div class="fig-l">영업 상태 <code>unknown</code></div>
+        <div class="fig-s">확인된 곳 0</div>
+      </div>
+      <div class="fig">
+        <div class="fig-n is-warn">15</div>
+        <div class="fig-l">4축 점수 결측</div>
+        <div class="fig-s">적재 제외</div>
+      </div>
+      <div class="fig">
+        <div class="fig-n is-crit">0</div>
+        <div class="fig-l">주소·지도 링크 보유</div>
+        <div class="fig-s">컬럼 자체 없음</div>
+      </div>
+      <div class="fig">
+        <div class="fig-n is-ok">17</div>
+        <div class="fig-l">현재 추천 후보</div>
+        <div class="fig-s">임시 처리 후</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>비어 있는 것</h2>
+      <div class="sec-note">search/data/reports/1_taste_profiles/</div>
+    </div>
+
+    <div class="items">
+
+      <article class="item" data-sev="crit">
+        <div class="item-head">
+          <span class="id">D-1</span>
+          <h3>영업 상태가 한 곳도 조사되지 않음</h3>
+          <span class="chip" data-t="crit">외부 조사 필요</span>
+        </div>
+        <p>
+          <code>restaurant_availability.csv</code>의 <code>operating_status</code>가
+          <strong>32곳 전부 <code>unknown</code></strong>입니다.
+          <code>status_source</code>·<code>checked_at</code>·<code>note</code>도 전부 공란이라,
+          조사를 시도한 흔적 자체가 없습니다.
+        </p>
+        <div class="effect">
+          <b>영향</b>
+          <span>기존 필터가 <code>open</code>이 아닌 가게를 전부 버려 <strong>추천 후보 0곳</strong>. 어떤 답을 제출해도 <code>no_recommendation</code>이 돌아가던 배포 블로커였습니다.</span>
+        </div>
+      </article>
+
+      <article class="item" data-sev="warn">
+        <div class="item-head">
+          <span class="id">D-2</span>
+          <h3>4축 점수가 15곳에서 결측</h3>
+          <span class="chip" data-t="warn">근거 보강 필요</span>
+        </div>
+        <p>
+          육향·감칠맛·메밀향·산미 중 일부가 빈 문자열인 가게가 <strong>15곳</strong>이며,
+          <code>review_status = needs_more_evidence</code>인 15곳과 정확히 일치합니다.
+          능라도(강남점)·을밀대(본점)·필동면옥 등이 여기 속합니다.
+        </p>
+        <div class="effect">
+          <b>영향</b>
+          <span>적재 코드가 필터링보다 먼저 모든 행을 <code>float()</code>으로 변환해, 빈 값에서 <code>ValueError</code>로 죽습니다. 필터를 아무리 완화해도 <strong>마이그레이션 자체가 실패</strong>했습니다.</span>
+        </div>
+      </article>
+
+      <article class="item" data-sev="crit">
+        <div class="item-head">
+          <span class="id">D-3</span>
+          <h3>4축 점수에 유형 변별력이 없음</h3>
+          <span class="chip" data-t="crit">품질 재검토 필요</span>
+        </div>
+        <p>
+          점수가 <strong>32곳 전부 <code>score_type = auto</code></strong>, 즉 리뷰 텍스트 기반 자동 산출입니다.
+          "언급되면 높은 점수"가 되는 구조라 값이 위쪽으로 몰려 있습니다.
+          유형별 중심값을 내보면 육향이 4.60~5.00, 메밀향이 4.33~5.00으로 사실상 같습니다.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th>유형</th><th>육향</th><th>감칠맛</th><th>메밀향</th><th>산미</th><th>n</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="name">우래옥형</td><td class="num">4.60</td><td class="num">2.60</td><td class="num">5.00</td><td class="num">1.80</td><td class="num">5</td></tr>
+              <tr><td class="name">의정부형</td><td class="num">4.75</td><td class="num">3.00</td><td class="num">5.00</td><td class="num">1.50</td><td class="num">4</td></tr>
+              <tr><td class="name">장충동형</td><td class="num">5.00</td><td class="num">2.00</td><td class="num">5.00</td><td class="num">2.50</td><td class="num">2</td></tr>
+              <tr><td class="name">동치미형</td><td class="num">4.67</td><td class="num">3.00</td><td class="num">4.33</td><td class="num">3.67</td><td class="num">6</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>유형을 가르는 축이 <strong>산미 하나뿐</strong>이고, 그마저 1.50~3.67로 좁습니다.</li>
+          <li>"맑은 육수"가 정체성인 <strong>장충동형의 육향이 5.00으로 가장 높습니다</strong> — 라벨과 점수가 모순입니다.</li>
+          <li>표본이 유형당 2~6곳으로 적어 중심값 자체가 흔들립니다.</li>
+        </ul>
+        <div class="effect">
+          <b>영향</b>
+          <span>이 점수로 취향 유형을 판정하면 4096개 답변 조합 중 <strong>88.1%가 의정부형</strong>으로 쏠립니다. 정규화·중심화로도 76~80%까지밖에 안 내려갑니다.</span>
+        </div>
+      </article>
+
+      <article class="item" data-sev="warn">
+        <div class="item-head">
+          <span class="id">D-4</span>
+          <h3>주소·지도 링크 미수집</h3>
+          <span class="chip" data-t="warn">외부 조사 필요</span>
+        </div>
+        <p>
+          <code>restaurant_availability.csv</code>에 <code>address</code>·<code>map_url</code>
+          <strong>컬럼 자체가 없습니다</strong>. 현재 컬럼은
+          <code>restaurant_name</code>, <code>operating_status</code>, <code>status_source</code>,
+          <code>checked_at</code>, <code>note</code> 다섯 개뿐입니다.
+        </p>
+        <div class="effect">
+          <b>영향</b>
+          <span>DB 컬럼은 준비됐으나 값이 전부 <code>null</code>이라 결과 화면의 <strong>"평냉 지도 보기" 버튼</strong>을 띄울 수 없습니다.</span>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>지금 넘기고 있는 방식</h2>
+      <div class="sec-note">네 건 모두 되돌릴 자리 표시됨</div>
+    </div>
+
+    <div class="items">
+
+      <article class="item" data-sev="ok">
+        <div class="item-head">
+          <span class="id">T-1 → D-1</span>
+          <h3><code>unknown</code>을 후보에서 배제하지 않음</h3>
+          <span class="chip" data-t="ok">적용됨</span>
+        </div>
+        <p>
+          필터를 <code>!= "open"이면 제외</code>에서
+          <strong><code>closed</code>만 제외</strong>로 완화했습니다.
+          <code>unknown</code>은 "폐업했다는 근거가 없는 상태"이지 폐업이 아니라는 해석입니다.
+          이것만으로 후보가 <strong>0곳 → 17곳</strong>이 됐습니다.
+        </p>
+        <ul class="dash">
+          <li>위치: <code>services/recommendation_service.py:127-130</code></li>
+          <li>회귀 방지 테스트로 <code>unknown</code>은 포함, <code>closed</code>는 제외를 고정해 뒀습니다.</li>
+          <li><strong>주의</strong> — 폐업한 가게가 추천될 수 있습니다. D-1이 채워질 때까지 감수하는 리스크입니다.</li>
+        </ul>
+        <div class="effect">
+          <b>해제 조건</b>
+          <span>영업 상태가 실제로 채워지면 필터를 <code>open</code> 기준으로 되돌릴지 팀에서 결정.</span>
+        </div>
+      </article>
+
+      <article class="item" data-sev="ok">
+        <div class="item-head">
+          <span class="id">T-2 → D-2</span>
+          <h3>4축이 완비된 행만 적재</h3>
+          <span class="chip" data-t="ok">적용됨</span>
+        </div>
+        <p>
+          <code>has_complete_scores()</code>로 걸러 완비된 행만 넣고,
+          <strong>스킵한 가게 이름을 콘솔에 출력</strong>합니다. 조용히 사라지지 않게 하려는 의도입니다.
+        </p>
+        <ul class="dash">
+          <li>위치: <code>scripts/migrate_search_profiles.py:35-39</code></li>
+          <li>결측 15곳은 <code>review_status</code>가 <code>needs_more_evidence</code>라
+              어차피 <code>profile_confidence = low</code>로 추천에서 빠집니다 — <strong>실질 손실 없음</strong>.</li>
+        </ul>
+        <div class="effect">
+          <b>해제 조건</b>
+          <span>15곳의 점수가 채워지면 자동으로 적재됩니다. 코드 수정 불필요.</span>
+        </div>
+      </article>
+
+      <article class="item" data-sev="ok">
+        <div class="item-head">
+          <span class="id">T-3 → D-3</span>
+          <h3>유형 판정에서 가게 데이터를 뺌</h3>
+          <span class="chip" data-t="ok">적용됨</span>
+        </div>
+        <p>
+          가게 점수와의 벡터 거리로 유형을 정하려던 설계를 버리고,
+          <strong>선택지 카운팅</strong>으로 교체했습니다. 각 선택지가 대표하는 유형을 선언해 두고
+          6문항 중 가장 많이 고른 유형을 대표로 삼습니다.
+          말하자면 <em>설문 설계에 이미 인코딩된 의도</em>를 신호로 쓰는 것이고,
+          결함이 있는 가게 점수는 판정에서 배제됩니다.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th>판정 방식</th><th>의정부</th><th>장충동</th><th>우래옥</th><th>동치미</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="name">벡터 거리 (당초 설계)</td><td class="num">88.1%</td><td class="num">1.8</td><td class="num">1.5</td><td class="num">8.5</td></tr>
+              <tr><td class="name">＋ min-max 정규화</td><td class="num">76.5%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+              <tr><td class="name">＋ 중심화</td><td class="num">79.6%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+              <tr class="pick"><td class="name">선택지 카운팅 (채택)</td><td class="num">36.4%</td><td class="num">24.2</td><td class="num">20.5</td><td class="num">18.9</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="dash">
+          <li>4096개 답변 조합(4선택지 × 6문항) 전수 계산 결과입니다.</li>
+          <li>일치도는 "6문항 중 몇 개를 그 유형으로 골랐나"라서 사용자에게 설명 가능합니다.
+              벡터 거리는 <strong>동점 tie-break로만</strong> 남겼습니다.</li>
+          <li><strong>가게 추천 쪽은 벡터 거리를 그대로 씁니다</strong> — 후보끼리의 상대 비교라
+              점수가 위로 쏠린 편중이 서로 상쇄되기 때문입니다.</li>
+        </ul>
+        <div class="effect">
+          <b>해제 조건</b>
+          <span>가게 점수 품질이 개선되면 유형 판정에 데이터를 다시 쓸지 재검토.</span>
+        </div>
+      </article>
+
+      <article class="item" data-sev="ok">
+        <div class="item-head">
+          <span class="id">T-4 → D-4</span>
+          <h3>지도 링크에 임시 URL</h3>
+          <span class="chip" data-t="ok">적용됨</span>
+        </div>
+        <p>
+          <code>map_url</code>이 비어 있을 때만
+          <code>TEMP_ADDRESS_URL</code>(<code>https://www.google.com</code>)로 채웁니다.
+          판단이 <strong>가게 단위</strong>라 일부만 수집된 상태에서도 실제 링크와 임시 값이 섞여 동작합니다.
+        </p>
+        <ul class="dash">
+          <li>상수: <code>services/recommendation_data.py:25</code> / 사용처: <code>api/v1/recommendation.py:47</code></li>
+          <li><code>address</code>는 화면에 그대로 노출되는 문자열이라 임시 값을 넣지 않고 <code>null</code>을 유지합니다.</li>
+          <li>재적재해도 <code>COALESCE</code>로 이미 수집된 주소·링크를 덮어쓰지 않습니다.</li>
+        </ul>
+        <div class="effect">
+          <b>해제 조건</b>
+          <span>전 가게에 실제 링크가 들어오면 상수와 사용처 두 곳을 제거.</span>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>채워야 풀리는 것</h2>
+      <div class="sec-note">모두 코드가 아니라 데이터 쪽 작업</div>
+    </div>
+
+    <div class="todo">
+      <div class="todo-row">
+        <span class="id">D-1</span>
+        <div class="todo-t">영업 상태 실조사</div>
+        <div class="todo-d">
+          <code>restaurant_availability.csv</code>의 <code>operating_status</code>를
+          32곳에 대해 채웁니다. 값은 <code>open</code> / <code>closed</code> / <code>unknown</code>.
+          <strong>미착수 · 담당 미정.</strong>
+        </div>
+      </div>
+      <div class="todo-row">
+        <span class="id">D-4</span>
+        <div class="todo-t">주소·지도 링크 수집</div>
+        <div class="todo-d">
+          같은 CSV에 <code>address</code>, <code>map_url</code> 컬럼을 추가하기만 하면 됩니다.
+          변환 함수가 이미 두 키를 읽으므로 <strong>코드 수정 없이 반영</strong>됩니다.
+          <strong>미착수 · 담당 미정.</strong>
+        </div>
+      </div>
+      <div class="todo-row">
+        <span class="id">D-3</span>
+        <div class="todo-t">4축 점수 산출 방식 재검토</div>
+        <div class="todo-d">
+          <code>search</code> 쪽에서 "언급 빈도 → 강도 추정" 방식을 손보거나 수동 검수가 필요합니다.
+          해결되면 유형 판정에 가게 데이터를 다시 쓸 수 있고, T-3을 재검토할 수 있습니다.
+        </div>
+      </div>
+      <div class="todo-row">
+        <span class="id">D-2</span>
+        <div class="todo-t">결측 15곳 근거 보강</div>
+        <div class="todo-d">
+          <code>needs_more_evidence</code> 상태를 해소하면 추천 후보가 17곳에서 최대 32곳까지 늘어납니다.
+          D-3 작업과 함께 진행하는 편이 효율적입니다.
+        </div>
+      </div>
+    </div>
+
+    <p class="closing">
+      임시 처리 네 건은 모두 <strong>데이터가 들어오면 그 가게부터 자동으로 실제 값을 쓰도록</strong> 되어 있습니다.
+      부분 수집 상태에서도 안전하니, 32곳을 한 번에 채울 필요 없이 확인된 것부터 CSV에 넣어 주시면 됩니다.
+      상세 배경과 결정 근거는 <code>docs/prd-recommendation-result.md</code> §1.4 · §9.1 · §12에 있습니다.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>

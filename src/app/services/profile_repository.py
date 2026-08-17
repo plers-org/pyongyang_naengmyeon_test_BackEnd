@@ -28,7 +28,14 @@ class PostgresProfileRepository:
         return [
             RestaurantProfile(
                 restaurant_name=row[0],
-                scores={"meat_aroma": row[1], "umami": row[2], "buckwheat_aroma": row[3], "acidity": row[4]},
+                # NUMERIC 컬럼은 Decimal로 오므로 float으로 맞춘다.
+                # 취향 벡터가 float이라 그대로 두면 거리 계산에서 타입 오류가 난다.
+                scores={
+                    "meat_aroma": float(row[1]),
+                    "umami": float(row[2]),
+                    "buckwheat_aroma": float(row[3]),
+                    "acidity": float(row[4]),
+                },
                 profile_confidence=row[5],
                 operating_status=row[6],
                 fit_sentence=row[7],
@@ -98,9 +105,12 @@ def import_profiles(database_url: str, rows: Iterable[Mapping[str, object]]) -> 
     except ImportError as exc:
         raise RuntimeError("PostgreSQL 연동을 사용하려면 psycopg[binary]가 필요합니다.") from exc
     values = list(rows)
-    with psycopg.connect(database_url) as connection:
+    if not values:
+        return 0
+    # executemany는 커서에만 있다. 커넥션에는 execute만 있어 여러 행을 한 번에 넣지 못한다.
+    with psycopg.connect(database_url) as connection, connection.cursor() as cursor:
         _ensure_schema(connection)
-        connection.executemany(
+        cursor.executemany(
             """
             INSERT INTO restaurant_recommendation_profiles (
               restaurant_name, meat_aroma_score, umami_score,
