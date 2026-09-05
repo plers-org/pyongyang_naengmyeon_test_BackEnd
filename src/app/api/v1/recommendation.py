@@ -291,6 +291,7 @@ def _primary_type(key: str, score: float) -> PrimaryType:
         name=payload["name"],
         character_key=key,
         match_score=score,
+        hashtags=list(payload["hashtags"]),
         title=payload["title"],
         subtitle=payload["subtitle"],
         badge=payload["badge"],
@@ -305,4 +306,5 @@ def _type_summary(key: str, score: float) -> TypeSummary:
         name=TASTE_TYPES[key]["name"],
         character_key=key,
         match_score=score,
+        hashtags=list(TASTE_TYPES[key]["hashtags"]),
     )
