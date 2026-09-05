@@ -320,3 +320,37 @@ def rename_restaurant(database_url: str, old_name: str, new_name: str) -> int:
         affected = cursor.rowcount
         connection.commit()
     return affected
+
+
+# 4축 점수가 NOT NULL이라, 근거가 부족한 가게는 행 자체를 만들 수 없다.
+# 지도 정보만이라도 먼저 넣어야 할 때 빈 축을 임시 점수로 채운다.
+PROVISIONAL_VERSION_SUFFIX = "+provisional"
+PROVISIONAL_PLACEHOLDER_SCORE = 3.0
+
+
+def fill_incomplete_scores(
+    row: Mapping[str, object],
+    placeholder: float = PROVISIONAL_PLACEHOLDER_SCORE,
+) -> tuple[dict, List[str]]:
+    """빈 4축을 임시 점수로 채운 행과, 채워 넣은 축 이름을 돌려준다.
+
+    근거 없이 만든 점수이므로 profile_confidence는 반드시 low로 둔다.
+    추천 로직이 low를 후보에서 제외하므로(recommendation_service.recommend),
+    이렇게 넣은 행은 주소·지도 링크만 담고 추천 결과에는 나오지 않는다.
+
+    임시로 채웠다는 사실은 profile_version 접미사로 남겨, 나중에 검수한
+    점수로 다시 적재할 때 구분할 수 있게 한다.
+    """
+    filled = dict(row)
+    missing = [column for column in TRAIT_COLUMNS if filled.get(column) is None]
+    if not missing:
+        return filled, []
+
+    for column in missing:
+        filled[column] = placeholder
+    filled["profile_confidence"] = "low"
+
+    version = str(filled.get("profile_version") or "")
+    if not version.endswith(PROVISIONAL_VERSION_SUFFIX):
+        filled["profile_version"] = version + PROVISIONAL_VERSION_SUFFIX
+    return filled, missing
