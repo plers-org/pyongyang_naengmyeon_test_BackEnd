@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -141,6 +142,18 @@ class RecommendationResultResponse(BaseModel):
     무관하게 항상 채워진다. 가게 추천만 비어 있을 수 있다.
     """
 
+    result_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "이 결과의 영구 주소(UUID). `GET /api/recommendation/results/{result_id}` 의 경로에 그대로 넣으면 "
+            "같은 결과를 다시 조회할 수 있고, 그 주소를 그대로 공유하면 된다.\n\n"
+            "**null 일 수 있다.** 결과 저장에 실패한 경우이며, 이때도 아래 결과 필드는 모두 정상이다. "
+            "프론트는 값이 있으면 결과 페이지로 이동하고, null이면 이 응답 본문으로 결과를 그린 뒤 공유 버튼만 숨기면 된다."
+        ),
+    )
+    created_at: datetime = Field(
+        description="결과가 만들어진 시각(UTC, ISO 8601). 조회 시에도 제출 당시의 값이 그대로 온다.",
+    )
     status: Literal["recommended", "no_recommendation"] = Field(
         description=(
             "`recommended` 면 추천 가게가 담겨 있고, `no_recommendation` 이면 "
