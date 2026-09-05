@@ -215,3 +215,108 @@ def profile_row_from_search_csv(
         "map_url": _text(availability.get("map_url")),
         "profile_version": str(profile.get("profile_version", "phase2-v1")),
     }
+
+
+# --- search의 restaurant_places.csv → 주소·지도 링크·좌표 채우기 ---------------
+
+# 지도 정보만 따로 넣는 이유: 4축 점수 컬럼이 NOT NULL이라 place 정보만으로는
+# 새 행을 만들 수 없다. 이미 프로필이 있는 식당의 빈 칸을 채우는 UPDATE만 한다.
+PLACE_UPDATE_SQL = """
+UPDATE restaurant_recommendation_profiles SET
+  address = COALESCE(%(address)s, address),
+  map_url = COALESCE(%(map_url)s, map_url),
+  latitude = COALESCE(%(latitude)s, latitude),
+  longitude = COALESCE(%(longitude)s, longitude),
+  updated_at = NOW()
+WHERE restaurant_name = %(restaurant_name)s
+"""
+
+
+def _coordinate(value: object) -> float | None:
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def place_row_from_search_csv(place: Mapping[str, object]) -> dict:
+    """restaurant_places.csv 한 행을 UPDATE 파라미터로 옮긴다."""
+    return {
+        "restaurant_name": str(place["restaurant_name"]),
+        "address": _text(place.get("road_address")),
+        "map_url": _text(place.get("place_url")),
+        "latitude": _coordinate(place.get("latitude")),
+        "longitude": _coordinate(place.get("longitude")),
+    }
+
+
+def update_places(database_url: str, rows: Iterable[Mapping[str, object]]) -> tuple[int, List[str]]:
+    """(갱신된 식당 수, 프로필 테이블에 없어 건너뛴 식당명)을 돌려준다.
+
+    이름이 어긋나면 조용히 0행이 갱신되고 끝나므로, 매칭되지 않은 식당을
+    호출부가 알 수 있게 따로 모아서 돌려준다.
+    """
+    if not database_url:
+        raise ValueError("DATABASE_URL이 필요합니다.")
+    try:
+        import psycopg
+    except ImportError as exc:
+        raise RuntimeError("PostgreSQL 연동을 사용하려면 psycopg[binary]가 필요합니다.") from exc
+
+    values = list(rows)
+    if not values:
+        return 0, []
+
+    updated = 0
+    missing: List[str] = []
+    # 행마다 매칭 여부를 알아야 해서 executemany 대신 한 건씩 실행한다. 수십 행 규모다.
+    with psycopg.connect(database_url) as connection, connection.cursor() as cursor:
+        _ensure_schema(connection)
+        for value in values:
+            cursor.execute(PLACE_UPDATE_SQL, value)
+            if cursor.rowcount:
+                updated += 1
+            else:
+                missing.append(str(value["restaurant_name"]))
+        connection.commit()
+    return updated, missing
+
+
+def rename_restaurant(database_url: str, old_name: str, new_name: str) -> int:
+    """식당명이 바뀌었을 때 프로필 행의 이름을 옮긴다. 옮긴 행 수를 돌려준다.
+
+    새 이름 행이 이미 있으면 옛 행을 지운다. 지도 정보와 점수는 어차피
+    새 이름 기준으로 다시 적재하므로, 옛 행을 남겨두면 중복만 생긴다.
+    """
+    if not database_url:
+        raise ValueError("DATABASE_URL이 필요합니다.")
+    try:
+        import psycopg
+    except ImportError as exc:
+        raise RuntimeError("PostgreSQL 연동을 사용하려면 psycopg[binary]가 필요합니다.") from exc
+
+    with psycopg.connect(database_url) as connection, connection.cursor() as cursor:
+        _ensure_schema(connection)
+        exists = cursor.execute(
+            "SELECT 1 FROM restaurant_recommendation_profiles WHERE restaurant_name = %s",
+            (new_name,),
+        ).fetchone()
+        if exists:
+            cursor.execute(
+                "DELETE FROM restaurant_recommendation_profiles WHERE restaurant_name = %s",
+                (old_name,),
+            )
+        else:
+            cursor.execute(
+                """
+                UPDATE restaurant_recommendation_profiles
+                SET restaurant_name = %s, updated_at = NOW()
+                WHERE restaurant_name = %s
+                """,
+                (new_name, old_name),
+            )
+        affected = cursor.rowcount
+        connection.commit()
+    return affected
