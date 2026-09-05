@@ -123,4 +123,4 @@ PYTHONPATH=src/app pytest test/
 
 - [PRD: 취향테스트 결과 응답 확장](../../docs/prd-recommendation-result.md)
 - [PRD: 결과 ID 발급 및 결과 조회 API](../../docs/prd-result-share.md)
-- `docs/api-reference.html` — `python scripts/export_api_docs.py`로 갱신
+- `docs/api-reference.html` — `PYTHONPATH=src/app python src/app/scripts/export_api_docs.py`로 갱신 (저장소 루트에서 실행)

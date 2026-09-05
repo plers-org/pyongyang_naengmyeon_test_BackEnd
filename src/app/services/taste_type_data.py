@@ -33,6 +33,7 @@ TASTE_TYPES: Dict[str, Mapping[str, object]] = {
             "평양냉면의 슴슴함이 아직 낯선 사람도 맛있게 즐기기 좋은 스타일이에요."
         ),
         "theme_color": "#C98A3C",
+        "hashtags": ["진한육향", "깊은감칠맛", "본질파"],
         "vector": {"meat_aroma": 5.0, "umami": 4.0, "buckwheat_aroma": 2.0, "acidity": 1.0},
         "legacy_category": "우래옥",
     },
@@ -47,6 +48,7 @@ TASTE_TYPES: Dict[str, Mapping[str, object]] = {
             "깔끔하고 청량한 평양냉면을 좋아하는 사람들이 즐겨 찾는 스타일이에요."
         ),
         "theme_color": "#3D8FD1",
+        "hashtags": ["시원한동치미", "깔끔한끝맛", "청량파"],
         "vector": {"meat_aroma": 2.0, "umami": 4.0, "buckwheat_aroma": 2.0, "acidity": 5.0},
         "legacy_category": "동치미",
     },
@@ -61,6 +63,7 @@ TASTE_TYPES: Dict[str, Mapping[str, object]] = {
             "평냉에 입문한 사람도 부담 없이 즐기기 좋은 스타일이에요."
         ),
         "theme_color": "#5FA845",
+        "hashtags": ["맑고담백", "은근한 여운", "담백파"],
         "vector": {"meat_aroma": 2.0, "umami": 3.0, "buckwheat_aroma": 3.0, "acidity": 1.0},
         "legacy_category": "의정부",
     },
@@ -75,6 +78,7 @@ TASTE_TYPES: Dict[str, Mapping[str, object]] = {
             "평냉 고수들이 즐겨 찾는 스타일이에요."
         ),
         "theme_color": "#8C8C8C",
+        "hashtags": ["구수한육향", "풍성한감칠맛", "균형파"],
         "vector": {"meat_aroma": 1.0, "umami": 1.0, "buckwheat_aroma": 5.0, "acidity": 1.0},
         "legacy_category": "장충동",
     },

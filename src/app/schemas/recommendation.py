@@ -70,6 +70,13 @@ class TypeSummary(BaseModel):
     name: str = Field(description="화면에 노출할 유형 이름. 예: `우래옥형`.")
     character_key: str = Field(description="캐릭터 이미지 키. 현재는 `key` 와 같은 값이 온다.")
     match_score: float = Field(ge=0.0, le=1.0, description="이 유형과의 일치도(0.0~1.0). 백분율로 바꿔 표시한다.")
+    hashtags: List[str] = Field(
+        description=(
+            "이 유형을 한눈에 설명하는 해시태그 3개. 배열 순서대로 노출하면 된다.\n\n"
+            "`#` 은 붙어 있지 않다. 프론트에서 앞에 붙여 `#진한육향` 처럼 그린다. "
+            "유형별 문구가 서버에서 오므로 프론트에 태그를 하드코딩하지 않는다."
+        ),
+    )
 
 
 class PrimaryType(TypeSummary):
