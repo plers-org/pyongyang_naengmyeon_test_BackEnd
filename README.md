@@ -30,5 +30,6 @@ PYTHONPATH=src/app pytest test/
 ## 문서
 
 - [PRD: 취향테스트 결과 응답 확장](docs/prd-recommendation-result.md)
+- [PRD: 결과 ID 발급 및 결과 조회 API](docs/prd-result-share.md)
 - `docs/api-reference.html` — API 레퍼런스
 - `docs/aws-deploy-guide.html` — 배포 가이드

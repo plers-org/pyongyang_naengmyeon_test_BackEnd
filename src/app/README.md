@@ -34,7 +34,8 @@ uvicorn main:app --reload
 | Method | Endpoint | 설명 |
 | --- | --- | --- |
 | GET | `/api/recommendation/questions/{experience_level}` | 경험 수준(`beginner`/`expert`)별 6문항 일괄 조회 |
-| POST | `/api/recommendation/submit` | 6개 답변 제출 → 결과 화면 전체 데이터 |
+| POST | `/api/recommendation/submit` | 6개 답변 제출 → 결과 화면 전체 데이터 + `result_id` 발급 |
+| GET | `/api/recommendation/results/{result_id}` | 발급받은 ID로 같은 결과 재조회 |
 
 문항은 시작 시 한 번에 받고, 답변은 마지막에 한 번에 제출합니다.
 
@@ -42,6 +43,8 @@ uvicorn main:app --reload
 
 | 필드 | 내용 |
 | --- | --- |
+| `result_id` | 이 결과의 영구 주소(UUID). 저장 실패 시 `null` |
+| `created_at` | 결과 생성 시각(UTC) |
 | `primary_type` | 대표 유형 + 제목·부제·배지·도출 이유·배색 |
 | `secondary_type` | 두 번째로 잘 맞는 유형 |
 | `farthest_type` | 가장 거리가 먼 유형 |
@@ -56,6 +59,30 @@ uvicorn main:app --reload
 > `restaurant_availability.csv`에 `map_url` 컬럼을 채우면 해당 가게부터 실제 링크로 바뀝니다.
 
 요청에 `session_id`(프론트 생성 익명 UUID)를 넣으면 응답 로그가 함께 기록됩니다. 선택 항목입니다.
+
+## 결과 조회와 공유
+
+`submit` 이 발급한 `result_id` 로 같은 결과를 다시 받을 수 있습니다. 조회가 `GET` 이라
+Next.js 서버 컴포넌트에서 바로 호출할 수 있고, URL을 그대로 공유하면 받는 사람도 테스트를
+풀지 않고 같은 결과를 봅니다. 응답 형태는 `submit` 과 완전히 같아 결과 화면 컴포넌트를
+하나만 두면 됩니다.
+
+무엇을 고정하고 무엇을 다시 조립하는지가 이 기능의 핵심입니다.
+
+| | 항목 | 이유 |
+| --- | --- | --- |
+| **스냅샷 고정** | 답변, 4축 점수, 4개 유형 점수, 추천 가게 카드 전체, `status`/`message` | 공유한 결과와 받는 사람이 보는 결과가 달라지면 안 된다. 가게는 폐업·재적재로 사라질 수 있어 카드째 저장한다 |
+| **조회 시 조립** | 유형 카피(`title`·`subtitle`·`badge`·`reason`·`theme_color`), 축 이름(`label`) | 문구 오타를 고치면 이미 공유된 링크에도 반영된다 |
+
+저장에 실패하면 `result_id` 가 `null` 로 내려갑니다. 결과 본문은 정상이므로 프론트는 그
+응답으로 화면을 그리고 공유 버튼만 숨기면 됩니다. DB 장애 때문에 방금 푼 테스트 결과를
+못 보는 쪽이 더 나쁘다고 보고 내린 결정입니다.
+
+조회 실패는 두 가지로 구분됩니다. 없는 ID는 `404`, 저장소를 쓸 수 없는 상태는 `503` 입니다.
+결과는 불변이라 조회 응답에 `Cache-Control: public, max-age=3600` 이 함께 갑니다.
+
+`session_id` 는 조회 응답에 절대 실리지 않습니다. 같은 사용자의 다른 결과를 엮을 수 있는
+단서이기 때문입니다.
 
 ## 취향 유형
 
@@ -84,7 +111,7 @@ uvicorn main:app --reload
 
 | 변수 | 용도 |
 | --- | --- |
-| `DATABASE_URL` | PostgreSQL 접속 문자열. 미설정 시 가게 프로필이 비어 추천 불가 |
+| `DATABASE_URL` | PostgreSQL 접속 문자열. 미설정 시 가게 프로필이 비어 추천 불가. 결과 저장도 인메모리로 떨어져 프로세스를 재시작하면 발급한 `result_id` 가 사라집니다 |
 
 ## 테스트
 
@@ -95,4 +122,5 @@ PYTHONPATH=src/app pytest test/
 ## 문서
 
 - [PRD: 취향테스트 결과 응답 확장](../../docs/prd-recommendation-result.md)
+- [PRD: 결과 ID 발급 및 결과 조회 API](../../docs/prd-result-share.md)
 - `docs/api-reference.html` — `python scripts/export_api_docs.py`로 갱신
