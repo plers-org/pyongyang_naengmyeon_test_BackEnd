@@ -4,6 +4,7 @@ from services.profile_repository import (
     fill_incomplete_scores,
     has_complete_scores,
     place_row_from_search_csv,
+    select_place_targets,
 )
 
 
@@ -53,6 +54,43 @@ def test_blank_values_become_none_so_existing_values_survive():
 
 def test_non_numeric_coordinate_is_dropped():
     assert place_row_from_search_csv(_place_row(latitude="없음"))["latitude"] is None
+
+
+# --- 적재 대상 고르기 ---------------------------------------------------
+
+
+def _places():
+    return [
+        _place_row(restaurant_name="우래옥", match_status="matched"),
+        _place_row(restaurant_name="강서면옥", match_status="review"),
+        _place_row(restaurant_name="만포면옥(구산동 본점)", match_status="manual"),
+        _place_row(restaurant_name="없는집", match_status="failed"),
+    ]
+
+
+def test_manual_rows_are_always_imported():
+    """사람이 place_overrides.csv로 고친 행이 버려지면 안 된다."""
+    targets, skipped = select_place_targets(_places())
+
+    assert [row["restaurant_name"] for row in targets] == ["우래옥", "만포면옥(구산동 본점)"]
+    assert "만포면옥(구산동 본점)" not in skipped
+
+
+def test_review_rows_wait_for_a_human():
+    _, skipped = select_place_targets(_places())
+
+    assert "강서면옥" in skipped
+
+
+def test_include_review_adds_them_without_dropping_manual():
+    targets, skipped = select_place_targets(_places(), include_review=True)
+
+    assert [row["restaurant_name"] for row in targets] == [
+        "우래옥",
+        "강서면옥",
+        "만포면옥(구산동 본점)",
+    ]
+    assert skipped == ["없는집"]
 
 
 # --- 임시 점수로 강제 적재 -----------------------------------------------

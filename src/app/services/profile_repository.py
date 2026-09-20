@@ -252,6 +252,34 @@ def place_row_from_search_csv(place: Mapping[str, object]) -> dict:
     }
 
 
+# place_overrides.csv로 사람이 직접 바로잡은 행은 match_status가 manual로 남는다.
+# 자동 매칭이 고른 값보다 믿을 만하므로 --include-review와 무관하게 항상 적재한다.
+CONFIRMED_MATCH_STATUSES = frozenset({"matched", "manual"})
+REVIEW_MATCH_STATUS = "review"
+
+
+def select_place_targets(
+    places: Iterable[Mapping[str, object]],
+    include_review: bool = False,
+) -> tuple[List[Mapping[str, object]], List[str]]:
+    """(적재할 행, 건너뛴 식당명)을 돌려준다.
+
+    지점이 어긋났을 수 있는 review 행은 사람이 확인한 뒤에만 넣는다.
+    """
+    allowed = set(CONFIRMED_MATCH_STATUSES)
+    if include_review:
+        allowed.add(REVIEW_MATCH_STATUS)
+
+    targets: List[Mapping[str, object]] = []
+    skipped: List[str] = []
+    for place in places:
+        if place.get("match_status") in allowed:
+            targets.append(place)
+        else:
+            skipped.append(str(place.get("restaurant_name", "")))
+    return targets, skipped
+
+
 def update_places(database_url: str, rows: Iterable[Mapping[str, object]]) -> tuple[int, List[str]]:
     """(갱신된 식당 수, 프로필 테이블에 없어 건너뛴 식당명)을 돌려준다.
 
