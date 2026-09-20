@@ -2,7 +2,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from services.recommendation_data import TEMP_ADDRESS_URL
 from services.recommendation_service import InMemoryProfileRepository
 
 
@@ -232,25 +231,28 @@ def test_restaurant_type_and_location_are_exposed(monkeypatch):
     assert top["map_url"].startswith("https://")
 
 
-def test_missing_map_url_falls_back_to_temp_url(monkeypatch):
-    """지도 링크를 아직 수집하지 못한 가게는 임시 URL로 채운다."""
+def test_missing_map_url_stays_null(monkeypatch):
+    """지도 링크를 수집하지 못한 가게는 null로 내려간다.
+
+    예전에는 구글 홈으로 채웠다. 프론트가 엉뚱한 곳으로 보내는 링크보다
+    버튼을 감추는 편이 낫고, null이어야 프론트가 그 판단을 할 수 있다.
+    """
     top = _submit(monkeypatch, [_profile("미등록면옥")]).json()["recommended_restaurants"][0]
 
-    assert top["map_url"] == TEMP_ADDRESS_URL
+    assert top["map_url"] is None
     assert top["type_key"] is None
     assert top["address"] is None
 
 
-def test_real_map_url_takes_precedence_over_temp(monkeypatch):
-    """실제 링크가 있으면 임시 값 대신 실제 값을 쓴다."""
+def test_collected_map_url_is_returned_as_is(monkeypatch):
+    """수집된 링크는 그대로 내려간다."""
     rows = [_profile("실제면옥", map_url="https://map.naver.com/p/entry/place/11665")]
     top = _submit(monkeypatch, rows).json()["recommended_restaurants"][0]
 
     assert top["map_url"] == "https://map.naver.com/p/entry/place/11665"
-    assert top["map_url"] != TEMP_ADDRESS_URL
 
 
-def test_temp_url_applies_per_restaurant(monkeypatch):
+def test_map_url_is_decided_per_restaurant(monkeypatch):
     """가게마다 개별 판단한다. 한 곳만 링크가 있어도 다른 곳에 영향을 주지 않는다."""
     rows = [
         _profile("실제면옥", scores=(5, 4, 1, 1), map_url="https://map.naver.com/p/entry/place/11665"),
@@ -260,7 +262,7 @@ def test_temp_url_applies_per_restaurant(monkeypatch):
     by_name = {r["restaurant_name"]: r["map_url"] for r in restaurants}
 
     assert by_name["실제면옥"] == "https://map.naver.com/p/entry/place/11665"
-    assert by_name["미등록면옥"] == TEMP_ADDRESS_URL
+    assert by_name["미등록면옥"] is None
 
 
 def test_single_candidate_returns_one_restaurant(monkeypatch):

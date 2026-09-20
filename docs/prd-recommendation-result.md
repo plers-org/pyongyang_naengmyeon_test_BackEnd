@@ -465,7 +465,7 @@ if profile.profile_confidence == "low":
 | 후보 1곳 | `recommended`, 배열 길이 1 |
 | 유형 1·2위 동점 | 선언 순서로 tie-break. 결과는 항상 반환 |
 | 4개 유형 전부 동점 | 이론상 가능(모든 축 중앙값). 선언 순서로 결정되며 화면은 정상 동작 |
-| `map_url` 미등록 | 임시 URL(`TEMP_ADDRESS_URL`)로 채운다. 수집된 링크가 있으면 그 값이 우선하며, 판단은 **가게마다 개별**로 이루어진다 |
+| `map_url` 미등록 | `null`. 주소와 같이 임시 값을 넣지 않는다 (2026-09-20 임시 URL 폴백 제거) |
 | `address` 미등록 | `null`. 주소는 표시용 문자열이라 임시 값을 넣지 않는다 |
 
 ---
@@ -571,7 +571,7 @@ CREATE TABLE IF NOT EXISTS survey_responses (
 
 **주소·지도 링크 수집 방법**: `restaurant_availability.csv`에 `address`, `map_url` 컬럼을 추가하기만 하면 된다. 변환 함수가 이미 해당 키를 읽으므로 코드 수정 없이 반영된다. 기존 테이블에는 `PROFILE_MIGRATION_SQL`이 컬럼을 추가하고, 재적재 시 `COALESCE`로 기존 주소·링크를 덮어쓰지 않는다.
 
-**수집 전 임시 처리**: `map_url`이 비어 있으면 `TEMP_ADDRESS_URL`(`https://www.google.com`)로 채워 "평냉 지도 보기" 버튼이 동작하게 한다. 실제 링크가 들어온 가게는 그 값을 쓰며, 판단은 가게 단위라 일부만 수집된 상태에서도 섞여 동작한다. 전 가게에 실제 데이터가 들어오면 `services/recommendation_data.py`의 상수와 `api/v1/recommendation.py`의 사용처를 제거한다.
+**수집 전 임시 처리 (2026-09-20 종료)**: 수집 전에는 `map_url`이 비면 `TEMP_ADDRESS_URL`(`https://www.google.com`)로 채워 "평냉 지도 보기" 버튼이 동작하게 했다. 가게 32곳의 링크가 모두 적재되어 폴백이 한 번도 걸리지 않게 되었고, `services/recommendation_data.py`의 상수와 `api/v1/recommendation.py`의 사용처를 제거했다. 이제 수집 전인 가게는 `null`이 내려가며, 프론트가 그 값으로 버튼 노출을 판단한다.
 
 ### Phase 3 — 답변 로그
 

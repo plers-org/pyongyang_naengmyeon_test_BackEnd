@@ -17,7 +17,7 @@ from schemas.recommendation import (
     TypeSummary,
 )
 from services import recommendation_service, response_repository
-from services.recommendation_data import TEMP_ADDRESS_URL, TRAIT_LABELS, TRAITS
+from services.recommendation_data import TRAIT_LABELS, TRAITS
 from services.taste_type_data import TASTE_TYPES
 
 
@@ -107,8 +107,7 @@ def submit_recommendation(request: RecommendationSubmitRequest) -> Recommendatio
             evidence_summary=profile.evidence_summary,
             scores=dict(profile.scores),
             address=profile.address,
-            # 수집된 링크가 있으면 그것을 쓰고, 없을 때만 임시 값으로 채운다.
-            map_url=profile.map_url or TEMP_ADDRESS_URL,
+            map_url=profile.map_url,
         )
         for rank, (score, profile) in enumerate(result.restaurants, 1)
     ]

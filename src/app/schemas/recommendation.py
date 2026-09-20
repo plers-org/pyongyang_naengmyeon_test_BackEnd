@@ -138,7 +138,7 @@ class RecommendedRestaurant(BaseModel):
     address: Optional[str] = Field(default=None, description="가게 주소. 수집 전인 가게는 null.")
     map_url: Optional[str] = Field(
         default=None,
-        description="지도 링크. 아직 수집되지 않은 가게는 임시 링크가 내려오므로, 버튼 노출 여부는 이 값으로 판단하지 않는다.",
+        description="네이버 지도 링크. 수집 전인 가게는 null이므로, 이 값으로 지도 버튼 노출 여부를 판단하면 된다.",
     )
 
 
