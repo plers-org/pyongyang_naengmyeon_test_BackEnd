@@ -48,11 +48,11 @@ DESCRIPTION = """
 ## 알아둘 점
 
 - **인증이 없습니다.** API 키나 토큰 없이 바로 호출하면 됩니다.
-- **CORS가 모든 출처에 열려 있습니다.** 로컬 개발 서버에서 바로 붙일 수 있습니다.
+- **CORS는 허용된 출처만 열려 있습니다.** 운영 도메인과 `localhost:3000` · `localhost:5173` 에서 호출할 수 있습니다. 다른 출처가 필요하면 백엔드에 요청하세요.
 - **로그인이 없습니다.** 제출 시 넣는 `session_id` 는 프론트가 만든 익명 식별자이며, 유형 분포 통계에만 쓰입니다. 개인정보를 담아서는 안 됩니다.
 - **`result_id` 를 아는 사람은 누구나 결과를 볼 수 있습니다.** 공유가 목적인 설계입니다. 결과에는 개인정보가 없고, `session_id` 는 조회 응답에 실리지 않습니다.
 - **결과는 불변입니다.** 한 번 발급된 `result_id` 의 판정 결과는 이후 로직이나 가게 데이터가 바뀌어도 그대로입니다.
-- **현재 서버는 `http` 입니다.** https 페이지에서 호출하면 브라우저가 차단하므로, 로컬 개발은 `http://localhost` 에서 진행하세요.
+- **API 주소는 `https://api.plers.co.kr` 입니다.** http 로 호출하면 https 로 리다이렉트됩니다.
 """
 
 TAGS_METADATA = [
@@ -69,9 +69,20 @@ app = FastAPI(
     openapi_tags=TAGS_METADATA,
 )
 
+# 운영 프론트(Vercel)와 로컬 개발 서버만 허용한다.
+# 인증이 없는 API라 유출 위험은 낮지만, 열어두면 아무 사이트나 이 API를
+# 자기 화면에 붙여 쓸 수 있다.
+ALLOWED_ORIGINS = [
+    "https://plers.co.kr",
+    "https://www.plers.co.kr",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

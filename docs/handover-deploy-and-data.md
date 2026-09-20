@@ -74,7 +74,8 @@ HTTPS로 쓰거나, GitHub Actions에서 서버로 배포하는 방식으로 바
 
 | 항목 | 값 |
 |---|---|
-| EC2 | `ubuntu@15.165.89.181` (ap-northeast-2) |
+| API 주소 | `https://api.plers.co.kr` |
+| EC2 | `ubuntu@15.165.89.181` (t3.micro, ap-northeast-2c, 탄력적 IP) |
 | SSH 키 | `~/.ssh/pyongyang-naengmyeon-key.pem` (저장소에 없음, 별도 전달) |
 | 앱 경로 | `/home/ubuntu/services` |
 | 서비스 | `plers-api` (systemd, uvicorn 127.0.0.1:8000) |
@@ -85,6 +86,33 @@ HTTPS로 쓰거나, GitHub Actions에서 서버로 배포하는 방식으로 바
 
 RDS가 막혀 있어 로컬에서 직접 적재할 수 없다. CSV를 EC2로 올리고 거기서 실행한다.
 이건 올바른 설정이라 풀지 말 것.
+
+### HTTPS
+
+`api.plers.co.kr` — 가비아 DNS의 A 레코드가 탄력적 IP를 가리킨다.
+Let's Encrypt 인증서를 certbot으로 발급했고(2026-09-20), `certbot.timer`가 자동 갱신한다.
+갱신 리허설(`sudo certbot renew --dry-run`)은 통과 상태다.
+
+nginx는 80을 443으로 301 리다이렉트한다. **`deploy/nginx-plers.conf`는 HTTP만 담은
+최초 세팅용 파일이고, 운영 서버의 실제 설정은 certbot이 덧붙인 443 블록까지 포함해
+더 길다.** 인증서가 없는 새 서버에서도 nginx가 뜨도록 일부러 그렇게 뒀다.
+새 서버를 세팅하면 `setup_ec2.sh` 뒤에 certbot을 한 번 돌려야 한다.
+
+메일 주소 없이 등록했다(`--register-unsafely-without-email`). 만료 알림 메일을 받으려면
+`sudo certbot update_account --email <주소>`로 추가할 수 있다.
+
+**보안 그룹에 443이 열려 있어야 한다.** 2026-09-20 시점에는 80만 열려 있어
+인증서를 발급하고도 외부에서 https 접속이 되지 않았다.
+
+### CORS
+
+`main.py`의 `ALLOWED_ORIGINS`에 나열된 출처만 허용한다.
+운영 도메인(`plers.co.kr`, `www.plers.co.kr` — Vercel)과 로컬 개발 서버다.
+2026-09-20 이전에는 `["*"]`로 모두 열려 있었다.
+
+프론트에 새 도메인이 생기면(프리뷰 배포 등) 여기에 추가해야 한다.
+
+---
 
 ---
 
