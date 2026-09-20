@@ -1,60 +1,72 @@
 # 인수인계 — 배포 구조와 데이터 적재
 
-작성 2026-09-20 · 기준 브랜치 `dev` (`7690203`)
+작성 2026-09-20 · 기준 브랜치 `dev` (`a941228`)
 
 이 문서는 2026-09-20 가게 데이터 적재 작업에서 드러난 문제와 현재 상태를 남긴다.
 다음 사람이 배포하거나 데이터를 다시 넣을 때 같은 데서 막히지 않게 하는 것이 목적이다.
 
 ---
 
-## 1. 서버는 git 저장소가 아니다 — `deploy.sh`가 동작하지 않는다
+## 1. 배포 — `deploy.sh` 한 줄
 
-**가장 먼저 알아야 할 사실이다.**
-
-EC2의 `/home/ubuntu/services`는 git 저장소가 아니다. 홈 어디에도 `.git`이 없고,
-서버에 GitHub 자격증명도 없다 (`~/.ssh`에 인바운드용 `authorized_keys`만 있고
-배포 키 없음, GitHub host key 미등록).
-
-그런데 `deploy/deploy.sh`는 이렇게 시작한다.
+서버에 접속해 이것만 실행하면 된다.
 
 ```bash
-set -euo pipefail
-cd "${APP_ROOT}"
-git pull        # ← 여기서 무조건 죽는다
+ssh -i ~/.ssh/pyongyang-naengmyeon-key.pem ubuntu@15.165.89.181
+bash ~/services/deploy/deploy.sh
 ```
 
-`set -e`라 첫 실패에서 중단된다. **문서와 스크립트가 전제하는 배포 흐름이
-서버 실제 상태와 어긋나 있다.** 지금까지는 누군가 파일을 수동 복사해 왔고,
-그래서 서버에 무엇이 올라가 있는지 아무도 확신할 수 없다.
+`git pull` → 의존성 설치 → `migrate_db.sh`(스키마 반영) → 앱 재시작 순으로 돈다.
+스키마를 먼저 맞추고 앱을 올리는 순서가 중요하다. 컬럼이 없는 채로 뜨면 결과 저장이
+조용히 실패해 `result_id`가 계속 null로 내려간다.
+
+`~/services`는 `dev` 브랜치 클론이다. 서버가 어느 커밋에 있는지 `git log`로 확인할 수 있다.
+
+### GitHub 접근 방식
+
+저장소의 **배포 키(read-only)**로 pull한다.
+
+| 파일 | 역할 |
+|---|---|
+| `~/.ssh/github-deploy` | 개인키 (600). 서버 밖으로 나간 적 없다 |
+| `~/.ssh/github-deploy.pub` | 공개키. GitHub 저장소 Settings → Deploy keys에 등록됨 |
+| `~/.ssh/config` | github.com 접속 시 이 키를 쓰도록 지정 (`IdentitiesOnly yes`) |
+| `~/.ssh/known_hosts` | github.com 호스트 키. 없으면 `Host key verification failed` |
+
+읽기 전용이라 **서버에서 저장소로 푸시할 수 없다.** 의도된 제약이다.
+서버가 털려도 저장소는 넘어가지 않는다.
+
+확인:
+
+```bash
+ssh -T git@github.com
+# Hi plers-org/pyongyang_naengmyeon_test_BackEnd! You've successfully authenticated...
+```
+
+### 함정 — 조직 정책이 deploy key를 막을 수 있다
+
+2026-09-20 당시 plers-org가 조직 정책으로 deploy key를 꺼둬서, 저장소 Settings에
+**"Disabled by plers-org"**가 뜨고 등록이 되지 않았다. 저장소 설정으로는 풀 수 없고
+**조직 소유자만** 바꿀 수 있다. 화면에는 "There are no deploy keys for this repository"가
+함께 뜨는데 이건 차단 사유가 아니라서 헷갈리기 쉽다.
+
+정책이 다시 꺼지면 기존 키도 함께 무력화되어 `git pull`이 실패한다.
+그때는 조직 소유자에게 요청하거나, fine-grained PAT(해당 저장소 `Contents: Read-only`)를
+HTTPS로 쓰거나, GitHub Actions에서 서버로 배포하는 방식으로 바꿔야 한다.
+
+### 배경 — 2026-09-20 이전에는 배포가 불가능했다
+
+그전까지 `~/services`는 git 저장소가 아니었다. 누군가 파일을 수동 복사해 왔고,
+서버에 GitHub 자격증명도 없었다. 그래서 `git pull`로 시작하는 `deploy.sh`는
+`set -e` 때문에 첫 줄에서 죽었다. **문서와 스크립트가 전제하는 흐름이 서버 실제
+상태와 어긋나 있었고, 서버에 무엇이 올라가 있는지 아무도 확신할 수 없었다.**
 
 실제로 2026-09-20 배포 직전 서버 코드는 9월 5일 13:11 복사본이었고,
 `import_places.sh` · `run_script.sh` · `import_restaurant_places.py`가 아예 없었다.
 
-### 지금 쓰는 우회 방법
-
-`git archive`로 커밋 내용을 그대로 tar 전송한다. `.env`와 `.venv`는 git에 없으니
-덮어쓰이지 않는다.
-
-```bash
-# 맥에서
-cd ~/plers/services
-git archive --format=tar origin/dev | ssh -i ~/.ssh/pyongyang-naengmyeon-key.pem \
-  ubuntu@15.165.89.181 'tar -x -C ~/services'
-
-# 서버에서
-cd ~/services
-.venv/bin/pip install -r src/app/requirements.txt
-APP_ROOT=/home/ubuntu/services bash deploy/migrate_db.sh
-sudo systemctl restart plers-api && systemctl status plers-api --no-pager
-```
-
-### 제대로 고치려면
-
-`~/services`를 진짜 클론으로 교체해야 한다. GitHub 저장소에 배포 키(read-only)를
-등록하고 서버에 개인키를 넣은 뒤, 기존 디렉터리를 백업하고 클론한 다음
-`.env`와 `.venv`를 옮겨 붙인다. 그래야 `deploy.sh`가 원래 의도대로 동작한다.
-
-**미해결 상태다.** 이 작업 전까지는 위 우회 방법을 쓸 것.
+같은 날 배포 키를 등록하고 `~/services`를 클론으로 교체해 해결했다.
+`.env`와 `.venv`는 git에 없으므로 교체 시 그대로 옮겨 붙였다
+(`.venv`는 내부에 절대경로가 박혀 있어 최종 디렉터리 이름이 `services`여야 한다).
 
 ---
 
@@ -222,9 +234,14 @@ S3나 외장 디스크로 옮겨둘 것.
 
 ## 7. 서버에 남겨둔 백업
 
+2026-09-20 작업 중 만든 것들이다. 며칠 지켜본 뒤 `services-old-*`부터 지우면 된다
+(디렉터리라 용량을 제일 많이 먹는다). 디스크는 47% 사용 중이라 급하지는 않다.
+
 | 파일 | 내용 |
 |---|---|
-| `~/services-backup-20260920-1121.tar.gz` | 배포 직전 코드 (118K) |
+| `~/services-old-20260920-1146/` | 클론 교체 전 디렉터리 통째로 |
+| `~/services-preclone-20260920-1146.tar.gz` | 클론 교체 직전 코드 (126K) |
+| `~/services-backup-20260920-1121.tar.gz` | 그날 첫 배포 전 코드 (118K) |
 | `~/profiles-before-20260920-1125.sql` | 적재 직전 프로필 테이블 (17곳) |
 
 적재 자체는 upsert라 CSV를 고쳐 다시 돌리면 교정된다.
@@ -232,11 +249,64 @@ S3나 외장 디스크로 옮겨둘 것.
 
 ---
 
-## 8. 남은 작업
+## 8. 미해결 항목
 
-- [ ] **`~/services`를 git clone으로 교체** — 배포 키 등록 필요. §1 참고. 가장 시급하다
-- [ ] **임시점수 15곳의 4축 점수 검수** — 채워 넣으면 추천 후보로 올라온다.
-      `profile_version LIKE '%+provisional'`로 골라낼 수 있다
-- [ ] **류경회관 지점 결정** — §5 참고
-- [ ] **v2 DB 외부 백업**
-- [ ] `docs/todo-backend.md`의 HTTPS(certbot) 항목 — 아직 http다
+우선순위 순이다.
+
+### 8.1 v2 DB 외부 백업 — 가장 위험
+
+`search/data/pyongyang_naengmyeon_v2.db`(96MB)가 **이 노트북 한 대에만 있다.**
+크롤링 원문·맛 문장·지점 후보가 전부 여기 들어 있고, CSV를 다시 만들려면 이 파일이
+필요하다. 노트북이 망가지면 **크롤링부터 다시 해야 한다.**
+
+용량 때문에 git에 넣을 수 없으니 S3나 외장 디스크로 옮길 것. §6 참고.
+
+### 8.2 임시점수 15곳의 4축 점수 검수
+
+`--force-incomplete`로 넣은 15곳은 빈 축이 3.0으로 채워져 있고
+`profile_confidence = 'low'`라 **추천 후보에 오르지 않는다.** 주소·지도 링크만 들어가 있다.
+
+```sql
+SELECT restaurant_name, profile_version FROM restaurant_recommendation_profiles
+WHERE profile_version LIKE '%+provisional';
+```
+
+대상: 능라도(강남점), 류경회관, 만포면옥(구산동 본점), 봉밀가, 봉피양(방이 본점),
+서관면옥(삼성점), 양각도, 유진식당, 을밀대(본점), 정인면옥(여의도 본점),
+진미평양냉면(피양옥), 진영면옥, 평래옥, 평장원, 필동면옥.
+
+대부분 `acidity` 한 축만 비어 있다 (양각도는 `umami`도, 만포면옥은 `umami`가 빈다).
+근거를 채워 `restaurant_taste_profiles.csv`를 갱신하고 다시 적재하면
+`+provisional` 표시가 사라지면서 추천 후보로 올라온다.
+
+**추천 가능한 가게가 17곳뿐이라 결과가 단조로울 수 있다.** 이 검수가 체감 품질에
+가장 크게 영향을 준다.
+
+### 8.3 류경회관 지점 결정
+
+블로그 제목 언급이 역삼 110 / 광화문·종로 121로 갈리고 **겹치는 제목이 0개**라
+데이터로 판정이 안 된다. 두 지점이 각자 활발하다는 뜻이다.
+
+현재는 자동 매칭이 고른 **광화문점(삼봉로 81)**이 들어가 있다.
+강남점(논현로71길 18)으로 바꾸려면 `place_overrides.csv`에 한 줄 추가하고
+`collect-places`를 **전체** 재실행한다. §4 참고.
+
+### 8.4 HTTPS 적용 (certbot)
+
+API가 아직 http다. 프론트가 https로 뜨면 브라우저가 호출을 차단한다.
+`deploy/`에 certbot 설정이 없어 신규 작업이다.
+도메인 A 레코드 확인 → 인증서 발급 → `nginx-plers.conf`에 443 블록과 80→443 리다이렉트
+→ `certbot renew --dry-run` → CORS 허용 오리진 갱신(`main.py`) 순이다.
+자세한 체크리스트는 `docs/todo-backend.md` 3번 항목에 있다.
+
+### 8.5 프론트의 `map_url` null 처리 확인
+
+2026-09-20에 구글 홈 폴백을 제거해서, 지도 링크가 없는 가게는 이제 `null`이 내려간다
+(스키마상 원래도 `Optional[str]`이었다). **프론트가 항상 문자열로 가정하고 있다면
+확인이 필요하다.** 현재 적재된 32곳은 모두 링크가 있어 실사용에서 null이 나오지는
+않고, 지도 정보 없는 가게를 새로 추가할 때만 발생한다.
+
+### 8.6 지점별 프로필 분리 (장기)
+
+여러 지점을 가진 가게의 맛 점수는 모든 지점 리뷰를 섞은 값이다. §5 끝 참고.
+지점별로 맛이 갈리는 집이라면 프로필을 지점 단위로 쪼개야 한다. 스키마 변경이 필요하다.
